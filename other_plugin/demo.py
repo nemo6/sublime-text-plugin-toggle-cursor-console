@@ -95,13 +95,104 @@ def f_split_region_to_range( sublime_region ):
 		w.append( sublime.Region( x,x+1 ) )
 	return w
 
-def detect_scope_argument( array ):
-	print( array )
+#
+
+def find_function_call(self):
+
+	update_regions = self.view.find_by_selector( "meta.function-call.js" )
+	# variable.function.js
+
+	# for [i,region] in enumerate(regions):
+	# 	if "storage.type.function.js" in scope_name( self.view, region ):
+	# 		update_regions.append( region )
+
+	level_block = 0
+
+	list_results = []
+	for region in update_regions:
+		# print( [view.substr( region ).strip()] )
+		# m = list( filter( lambda x : x[-1] in [46,89] , m ) )
+		f = list( filter( lambda x : x == "meta.block.js" , scope_name( view , region ) ) )
+		level_block = len(f)
+		v = detect_scope_argument2( f_split_region_to_range(region) , level_block )
+		list_results.append( v )
+
+	return list_results
+
+def detect_scope_argument2( array , level_block ):
+	# print( array )
+	function_name = ""
+	region = []
+	is_var_detected = False
+	variables_names = [ "" ]
+
 	for x in array:
-		# print( v )
 		v = scope_name( view , x )[-1]
+		# print( v )
+		if re.search( "variable.function.js" , v ):
+			function_name += view.substr(x)
+			region.append( x.begin() )
+			continue
+		if re.search( "variable." , v ):
+			is_var_detected = True
+			variables_names[-1] += view.substr(x)
+		else:
+			if is_var_detected:
+				variables_names.append( "" )
+				is_var_detected = False
+
+	# filter variables_names from empty value
+	return [ level_block , function_name , variables_names[:-1] ] # [region[0],region[-1]]
+
+#
+
+def find_argument_function(self):
+
+	regions = self.view.find_by_selector( "meta.function.declaration.js" )
+	update_regions = []
+
+	for [i,region] in enumerate(regions):
+		if "storage.type.function.js" in scope_name( self.view, region ):
+			update_regions.append( region )
+
+	list_results = []
+	for region in update_regions:
+		f = list( filter( lambda x : x == "meta.block.js" , scope_name( view , region ) ) )
+		level_block = len(f)
+		v = detect_scope_argument( f_split_region_to_range(region) , level_block )
+		list_results.append( v )
+
+	return list_results
+
+def detect_scope_argument( array, level_block ):
+	# print( array )
+	function_name = ""
+	variables_names = [ "" ]
+	is_var_detected = False
+
+	for x in array:
+		v = scope_name( view , x )[-1]
+		# print( v )
+
+		if re.search("entity.name.function.js" , v ):
+			function_name += view.substr(x)
+			continue
+
+		# if re.search( "variable.parameter" , v ):
+			# TO DO : work only for variable with one character
+			# variables_names.append( [ view.substr(x) , x ] )
+
 		if re.search( "variable.parameter" , v ):
-			print( view.substr(x) )
+			is_var_detected = True
+			variables_names[-1] += view.substr(x)
+		else:
+			if is_var_detected:
+				variables_names.append( "" )
+				is_var_detected = False
+
+	# filter variables_names from empty value
+	return [ level_block, function_name , variables_names[:-1] ] # [region[0],region[-1]]
+	# return { "function_name":function_name , "variables_names":variables_names[:-1] } # [ variables_names]
 
 # SCOPE START : select_next_variable
 
@@ -111,37 +202,27 @@ class select_next_variable( sublime_plugin.TextCommand ):
 	def run(self,edit):
 		global view
 		view = self.view
+
 		if( len( highlight_array ) != 0 ):
 			for key in [ "group_punct" ]:
 				self.view.erase_regions(key)
 			del highlight_array[:]
 			return
-		first_selection = self.view.sel()[-1]
-		# punctuation.section.group
-		# entity.name.function.js
-		# meta.function-call.js
-		# meta.function.declaration.js
-		# storage.type.function.js
-		# regions = self.view.find_by_selector( "variable.function.js" )
-		# regions = self.view.find_by_selector( "punctuation.section.group" )
-		regions = self.view.find_by_selector( "meta.function.declaration.js" )
-		update_regions = []
-		
-		for [i,region] in enumerate(regions):
-			# print( i+1 , scope_name( self.view, region ) )
-			if "storage.type.function.js" in scope_name( self.view, region ):
-				update_regions.append( region )
 
-		for region in update_regions:
-			detect_scope_argument( f_split_region_to_range(region) )
-	
-		return		
-		# highlight_array:
-		highlight_array.append( update_regions )
-		self.view.add_regions( "group_punct", update_regions, scope="comment", flags=sublime.DRAW_NO_FILL)
-		return
-		for region in regions:
-			print( scope_name( self.view , region ) )
+		first_selection = self.view.sel()[-1]
+
+		# target_variable = "volt"
+		# detect current meta block ( meta.block.js ) before searching match for variable name
+
+		print( find_function_call(self) )
+		print( find_argument_function( self ) )
+
+		# highlight_array.append( update_regions )
+		# self.view.add_regions( "group_punct", update_regions, scope="comment", flags=sublime.DRAW_NO_FILL)
+		# return
+		# for region in regions:
+		# 	print( scope_name( self.view , region ) )
+
 		# print( first_selection )
 		# print( scope_name( self.view , first_selection.begin() ) )
 		# print( view.find_by_selector( "meta.group.js" ) )
