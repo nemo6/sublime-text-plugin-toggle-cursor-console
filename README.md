@@ -1,2 +1,2 @@
-# sublime_text_plugin_toggle_cursor_console
+# sublime text plugin toggle cursor console
 N/A
