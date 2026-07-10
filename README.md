@@ -1,2 +1,1 @@
-# sublime text plugin toggle cursor console
-N/A
+Sublime Text command ...
